@@ -196,15 +196,44 @@ bool q_delete_mid(struct list_head *head)
 // https://leetcode.com/problems/remove-duplicates-from-sorted-list-ii/
 bool q_delete_dup(struct list_head *head)
 {
+    if (!head || list_empty(head)) {
+        return false;
+    }
+    struct list_head *node = head->next;
+    while (node->next != head) {
+        char *fstr = list_entry(node, element_t, list)->value;
+        element_t *tmp = list_entry(node->next, element_t, list);
+        if (strcmp(fstr, tmp->value) == 0) {
+            list_del(node->next);
+            q_release_element(tmp);
+        } else {
+            node = node->next;
+        }
+    }
     return true;
 }
 
 /*
  * Attempt to swap every two adjacent nodes.
  */
+// https://leetcode.com/problems/swap-nodes-in-pairs/
 void q_swap(struct list_head *head)
 {
-    // https://leetcode.com/problems/swap-nodes-in-pairs/
+    if (!head) {
+        return;
+    }
+    struct list_head *node = head->next;
+    while (node->next != head) {
+        // swap
+        node->next->prev = node->prev;
+        node->prev->next = node->next;
+        node->next->next->prev = node;
+        node->prev = node->next;
+        node->next = node->next->next;
+        node->prev->next = node;
+
+        node = node->next;
+    }
 }
 
 /*
