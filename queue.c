@@ -243,11 +243,55 @@ void q_swap(struct list_head *head)
  * (e.g., by calling q_insert_head, q_insert_tail, or q_remove_head).
  * It should rearrange the existing ones.
  */
-void q_reverse(struct list_head *head) {}
+void q_reverse(struct list_head *head)
+{
+    if (!head) {
+        return;
+    }
+    struct list_head *node = head;
+    while (node->next != head) {
+        struct list_head *tmp = node->next;
+        node->next = node->prev;
+        node->prev = tmp;
+
+        node = node->prev;
+    }
+}
 
 /*
  * Sort elements of queue in ascending order
  * No effect if q is NULL or empty. In addition, if q has only one
  * element, do nothing.
  */
-void q_sort(struct list_head *head) {}
+void q_sort(struct list_head *head)
+{
+    if (!head || head->next == head->prev) {
+        return;
+    }
+    struct list_head *left, *right, *pivot;
+    left = q_new();
+    right = q_new();
+
+    pivot = head->next;
+    list_del(pivot);
+
+    // partition
+    while (!list_empty(head)) {
+        struct list_head *tmp, *t_head;
+        tmp = head->next;
+        list_del(tmp);
+        t_head = (strcmp(list_entry(pivot, element_t, list)->value,
+                         list_entry(tmp, element_t, list)->value) < 0)
+                     ? right
+                     : left;
+
+        list_add_tail(tmp, t_head);
+    }
+
+    q_sort(left);
+    q_sort(right);
+
+    list_add_tail(pivot, left);
+    list_splice_tail(right, left);
+    q_release_element(list_entry(right, element_t, list));
+}
