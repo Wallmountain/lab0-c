@@ -18,13 +18,13 @@
  */
 struct list_head *q_new()
 {
-    element_t *tmp = (element_t *) malloc(sizeof(element_t));
+    struct list_head *tmp =
+        (struct list_head *) malloc(sizeof(struct list_head));
     if (!tmp) {
         return NULL;
     }
-    tmp->value = NULL;
-    INIT_LIST_HEAD(&tmp->list);
-    return &tmp->list;
+    INIT_LIST_HEAD(tmp);
+    return tmp;
 }
 
 /* Free all storage used by queue */
@@ -33,12 +33,12 @@ void q_free(struct list_head *l)
     if (!l) {
         return;
     }
-    while (!list_empty(l)) {
-        struct list_head *node = l->next;
-        list_del_init(node);
-        q_release_element(list_entry(node, element_t, list));
+    element_t *entry, *safe;
+    list_for_each_entry_safe (entry, safe, l, list) {
+        list_del_init(&entry->list);
+        q_release_element(entry);
     }
-    q_release_element(list_entry(l, element_t, list));
+    free(l);
 }
 
 /*
@@ -57,9 +57,7 @@ bool q_insert_head(struct list_head *head, char *s)
     if (!node) {
         return false;
     }
-    int length = 0;
-    while (*(s + length))
-        length++;
+    int length = strlen(s);
     node->value = (char *) malloc(length + 1);
     if (!node->value) {
         q_release_element(node);
@@ -89,9 +87,7 @@ bool q_insert_tail(struct list_head *head, char *s)
     if (!node) {
         return false;
     }
-    int length = 0;
-    while (*(s + length))
-        length++;
+    int length = strlen(s);
     node->value = (char *) malloc(length + 1);
     if (!node->value) {
         q_release_element(node);
@@ -238,7 +234,7 @@ void q_swap(struct list_head *head)
         return;
     }
     struct list_head *node = head->next;
-    while (node->next != head) {
+    while (node->next != head && node != head) {
         // swap
         node->next->prev = node->prev;
         node->prev->next = node->next;
@@ -280,7 +276,7 @@ struct list_head *mergetwoqueues(struct list_head *left,
     struct list_head *head = NULL;
     struct list_head **ptr = &head, **node = NULL;
 
-    for (; left != head && right != head; *node = (*node)->next) {
+    for (; left && right; *node = (*node)->next) {
         node = (strcmp(list_entry(left, element_t, list)->value,
                        list_entry(right, element_t, list)->value) < 0)
                    ? &left
@@ -290,16 +286,26 @@ struct list_head *mergetwoqueues(struct list_head *left,
     }
     *ptr = (struct list_head *) ((uintptr_t) left | (uintptr_t) right);
 
-    struct list_head *cur;
-    list_for_each (cur, head) {
-        cur->next->prev = cur;
-    }
-    head->next->prev = head;
-
-    cur = head->next;
-    list_del_init(head->next);
-    q_release_element(list_entry(cur, element_t, list));
     return head;
+}
+
+struct list_head *mergesort_list(struct list_head *head)
+{
+    if (!head || !head->next) {
+        return head;
+    }
+
+    struct list_head *slow = head, *right;
+    for (struct list_head *fast = head->next; fast && fast->next;
+         fast = fast->next->next)
+        slow = slow->next;
+
+    right = slow->next;
+    slow->next = NULL;
+
+    head = mergesort_list(head);
+    right = mergesort_list(right);
+    return mergetwoqueues(head, right);
 }
 
 /*
@@ -309,26 +315,17 @@ struct list_head *mergetwoqueues(struct list_head *left,
  */
 void q_sort(struct list_head *head)
 {
-    if (!head || head->next == head->prev) {
+    if (!head || list_empty(head) || list_is_singular(head)) {
         return;
     }
-    struct list_head *node, *right;
-    right = q_new();
+    struct list_head *node = head->next;
+    head->prev->next = NULL;
+    node = mergesort_list(node);
 
-    int size = q_size(head) / 2;
-    // partition
-    node = head->next;
-    while (--size) {
-        node = node->next;
+    head->next = node;
+    for (node = head; node->next; node = node->next) {
+        node->next->prev = node;
     }
-    right->next = node->next;
-    right->prev = head->prev;
-    head->prev->next = node->next->prev = right;
-    head->prev = node;
     node->next = head;
-
-
-    q_sort(head);
-    q_sort(right);
-    mergetwoqueues(head, right);
+    head->prev = node;
 }
