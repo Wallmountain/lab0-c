@@ -285,7 +285,6 @@ struct list_head *mergetwoqueues(struct list_head *left,
         ptr = &(*ptr)->next;
     }
     *ptr = (struct list_head *) ((uintptr_t) left | (uintptr_t) right);
-
     return head;
 }
 
