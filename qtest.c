@@ -597,6 +597,50 @@ static bool do_size(int argc, char *argv[])
     return ok && !error_check();
 }
 
+void q_shuffle(struct list_head *head)
+{
+    int len = q_size(head);
+    if (len < 2)
+        return;
+
+    for (; len > 1; len--) {
+        int n = rand() % len;
+
+        struct list_head *cur = head->next;
+        for (; n; n--) {
+            cur = cur->next;
+        }
+        list_del(cur);
+        list_add_tail(cur, head);
+    }
+}
+
+bool do_shuffle(int argc, char *argv[])
+{
+    if (argc != 1) {
+        report(1, "%s takes no arguments", argv[0]);
+        return false;
+    }
+
+    if (!l_meta.l)
+        report(3, "Warning: Calling sort on null queue");
+    error_check();
+
+    int cnt = q_size(l_meta.l);
+    if (cnt < 2)
+        report(3, "Warning: Calling sort on single node");
+    error_check();
+
+    set_noallocate_mode(true);
+    if (exception_setup(true))
+        q_shuffle(l_meta.l);
+    exception_cancel();
+    set_noallocate_mode(false);
+
+    show_queue(3);
+    return !error_check();
+}
+
 bool do_sort(int argc, char *argv[])
 {
     if (argc != 1) {
@@ -765,6 +809,7 @@ static bool do_show(int argc, char *argv[])
 static void console_init()
 {
     ADD_COMMAND(new, "                | Create new queue");
+    ADD_COMMAND(shuffle, "| Fisher-Yates shuffle algorithm");
     ADD_COMMAND(free, "                | Delete queue");
     ADD_COMMAND(
         ih,
